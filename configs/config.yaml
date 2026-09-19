@@ -1,0 +1,18 @@
+wandb:
+  enabled: false          # set true and fill `entity` to log runs
+  project: "embedplan"
+  entity: null
+  log_freq: 1
+  save_code: true
+  notes: null
+  tags: []
+
+training:
+  checkpoint_freq: 50
+  eval_start_epoch: 100
+  patience: 100  # early stopping patience (epochs without improvement)
+
+results:
+  base_dir: "results"
+  training_dir: "results/training"
+  history_dir: "results/history"

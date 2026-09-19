@@ -1,0 +1,8 @@
+/data/
+/results/
+/logs/
+/ckpts/
+/cache/
+/wandb/
+__pycache__/
+*.py[cod]

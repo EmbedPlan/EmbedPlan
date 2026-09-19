@@ -1,0 +1,24 @@
+# Core (required)
+torch>=2.0
+numpy
+pandas
+pyyaml
+tqdm
+scipy
+scikit-learn
+
+# Encoders (required to build embeddings; not needed to re-score cached ones)
+transformers>=4.40
+sentence-transformers
+
+# LoRA fine-tuning (experiments/finetune_encoder.py only)
+peft>=0.10
+
+# Direct-LLM baseline (experiments/llm_transition.py only; needs OPENROUTER_API_KEY)
+requests
+litellm
+
+# Figures / logging (optional)
+matplotlib
+umap-learn
+wandb
