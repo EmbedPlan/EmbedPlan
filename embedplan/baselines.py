@@ -1,7 +1,7 @@
 """Floor baselines — how much of the reported accuracy needs a learned transition?
 
-The submission's only lower bound is an untrained network with random weights
-(~3.9% Hit@5). That is a weak floor. These three are stronger and all but free:
+An untrained network with random weights (~3.9% Hit@5) is a weak lower bound.
+These three are stronger and all but free:
 
 Identity    predict no change at all, s_hat' = E(s). Because state prompts share
             the entire PROBLEM and GOAL blocks and differ by one or two predicates,

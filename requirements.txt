@@ -16,7 +16,6 @@ peft>=0.10
 
 # Direct-LLM baseline (experiments/llm_transition.py only; needs OPENROUTER_API_KEY)
 requests
-litellm
 
 # Figures / logging (optional)
 matplotlib

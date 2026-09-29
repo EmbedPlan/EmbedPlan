@@ -2,8 +2,7 @@ import os
 import ast
 import argparse
 import pickle
-from pathlib import Path
-from typing import Dict, List, Tuple, Iterable
+from typing import Dict, List, Iterable
 
 import torch
 import pandas as pd
@@ -11,7 +10,7 @@ from tqdm import trange
 
 # Reuse the project utilities and encoders
 from embedplan.config import Config
-from embedplan.encoders import *
+from embedplan.encoders import Llama3ModelEncoder, SentenceTransformerEncoder
 
 domain_names = Config.domain_names
 DATA_DIR = Config.data_states_path
@@ -23,10 +22,6 @@ def get_encoder(name: str):
     if 'llama' in name_lower or 'llama3' in name_lower or 'qwen' in name_lower:
         # Accepts model names like "llama3", "llama-3", "meta-llama/Llama-3.1-8B-Instruct", etc.
         return Llama3ModelEncoder(model_name=name)
-    elif 'voyage' in name_lower:
-        # Handle Voyage AI embedding models
-        from text_embeddings import VoyageEncoder
-        return VoyageEncoder()
     elif 'sentence-transformers' in name_lower or 'all-mpnet' in name_lower or 'all-minilm' in name_lower or 'bge' in name_lower:
         # Handle sentence-transformers models
         return SentenceTransformerEncoder(model_name=name)
@@ -155,7 +150,8 @@ def process_domain(domain_name: str, model_name: str, batch_size: int, text_type
 
 def main():
     parser = argparse.ArgumentParser("Encode unique actions from plan values")
-    parser.add_argument("--embeddings_model_name", type=str, default="meta-llama/Llama-3.1-8B-Instruct", help="Embedding model to use")
+    parser.add_argument("--embeddings_model_name", type=str, default="meta-llama/Llama-3.3-70B-Instruct",
+                        help="Embedding model to use (the same one that encoded the states)")
     parser.add_argument("--batch_size", type=int, default=10)
     parser.add_argument(
         "--domains",

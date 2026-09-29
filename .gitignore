@@ -1,8 +1,20 @@
+# Data, results and run artifacts stay outside git
 /data/
 /results/
 /logs/
 /ckpts/
 /cache/
 /wandb/
+
+# Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

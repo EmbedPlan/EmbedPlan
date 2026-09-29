@@ -25,7 +25,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from embedplan import load_domain, make_split
-from embedplan.config import REBUTTAL_DIR as OUT_DIR
+from embedplan.config import RUNS_DIR as OUT_DIR
 from embedplan.models import TransitionMLP
 from embedplan.losses import compute_infonce_loss
 

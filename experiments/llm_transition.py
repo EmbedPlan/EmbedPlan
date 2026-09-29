@@ -1,6 +1,6 @@
 """LLM baselines for single-step transition prediction.
 
-Protocol (unchanged from the submission so the numbers stay comparable): the model
+Protocol (unchanged from experiments/llm_ranking.py so the numbers stay comparable): the model
 is shown a state and an action in natural language and generates the successor
 state as text. That generation is then ranked against the same problem-grouped
 candidate pool EmbedPlan retrieves from, by normalized character distance.
@@ -11,9 +11,8 @@ Three things this fixes relative to experiments/llm_ranking.py:
    passed to the sampler), while EmbedPlan is scored on its held-out test split.
    The two were never evaluated on the same transitions. Here the split is
    explicit and the LLM sees exactly the queries EmbedPlan is tested on.
-2. Coverage. Any domain, and both Interpolation and Extrapolation. The submission
-   only ever ran two domains on one split, which is the "only two domains"
-   criticism.
+2. Coverage. Any domain, and both Interpolation and Extrapolation. The original
+   harness ran two domains on one split.
 3. A floor. `identity` ranks the pool by distance to the *current* state — the
    text-space version of "predict nothing changed." Without it there is no way to
    tell whether an LLM's Hit@5 reflects transition reasoning or the fact that

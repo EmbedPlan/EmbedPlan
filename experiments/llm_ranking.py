@@ -15,7 +15,10 @@ from datetime import datetime
 import numpy as np
 import requests
 import pandas as pd
-import wandb
+try:
+    import wandb
+except ImportError:  # optional: only needed for W&B logging
+    wandb = None
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
@@ -469,7 +472,6 @@ def main():
     parser.add_argument("--domains", nargs="+", default=DEFAULT_DOMAINS, choices=ALL_DOMAINS)
     parser.add_argument("--model", default=None, help="Single model to run")
     parser.add_argument("--all_models", action="store_true", help="Run all models")
-    parser.add_argument("--api_key", default=None)
     parser.add_argument("--max_samples", type=int, default=100)
     parser.add_argument("--output_dir", default="results/llm_experiment_updated")
     parser.add_argument("--seed", type=int, default=42)
@@ -493,7 +495,7 @@ def main():
         print("Models:", MODELS)
         return
 
-    api_key = args.api_key or os.environ.get("OPENROUTER_API_KEY")
+    api_key = os.environ.get("OPENROUTER_API_KEY")  # read from the environment, never from argv
     if not api_key and not args.dry_run:
         print("Error: Set OPENROUTER_API_KEY or use --dry_run")
         return
@@ -504,9 +506,11 @@ def main():
     elif args.model:
         models = [args.model]
     else:
-        models = [MODELS[2]]  # Default: llama-8b
+        models = [MODELS[2]]  # Default: qwen3-30b
 
-    use_wandb = not args.no_wandb
+    use_wandb = not args.no_wandb and wandb is not None
+    if not args.no_wandb and wandb is None:
+        print("wandb is not installed: logging to W&B is off (pip install wandb to enable it)")
 
     run_experiment(models, args.domains, api_key or "", args.embedding_model, args.max_samples,
                    args.output_dir, args.dry_run, args.seed, use_wandb, args.wandb_project, args.use_cache)

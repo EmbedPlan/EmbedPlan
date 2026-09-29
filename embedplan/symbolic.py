@@ -23,7 +23,6 @@ consistency check.
 
 import ast
 import re
-from collections import defaultdict
 from typing import Dict, FrozenSet, List, Optional, Sequence, Tuple
 
 import pandas as pd

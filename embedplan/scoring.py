@@ -3,7 +3,7 @@
 Two ways to rank a candidate next-state c against a prediction:
 
 ABSOLUTE  cos(pred, z_c)
-    What the submission uses.
+    What the paper uses.
 
 DELTA     cos(pred - z_s, z_c - z_s)
     Scores the *displacement* rather than the destination. Under Extrapolation
@@ -19,7 +19,7 @@ Both operate in the projected space: `pred` is the transition network's output,
 
 Tie-breaking: the two evaluation paths in the pre-refactor code disagreed —
 eval_metrics used worst-case (`>=`) and the pool sweep used best-case (`>`).
-The submitted E1/E4 numbers come from the best-case path, so that is the default
+The paper's pool-sweep (E1) and closed-loop (E4) numbers come from the best-case path, so that is the default
 here. With continuous cosine scores exact ties are vanishingly rare; the flag
 exists so the choice is visible rather than accidental.
 """
@@ -53,9 +53,12 @@ def _prepare(pred: torch.Tensor, cand: torch.Tensor, anchor: Optional[torch.Tens
         return F.normalize(pred, dim=-1), F.normalize(cand, dim=-1)
     if anchor is None:
         raise ValueError("DELTA scoring requires the projected current state as `anchor`")
+    if cand.dim() != 3:
+        # Each query has its own anchor, so a pool shared by all queries cannot be shifted
+        # once for everyone: use _delta_scores_shared_pool (or rank_in_pool) for that case.
+        raise ValueError("DELTA with a shared (P, D) pool: use _delta_scores_shared_pool")
     p, c, s = F.normalize(pred, dim=-1), F.normalize(cand, dim=-1), F.normalize(anchor, dim=-1)
-    s_b = s if c.dim() == 2 else s.unsqueeze(1)
-    return F.normalize(p - s, dim=-1), F.normalize(c - s_b, dim=-1)
+    return F.normalize(p - s, dim=-1), F.normalize(c - s.unsqueeze(1), dim=-1)
 
 
 def _delta_scores_shared_pool(pred, pool, anchor, eps: float = 1e-8):
@@ -79,7 +82,10 @@ def _delta_scores_shared_pool(pred, pool, anchor, eps: float = 1e-8):
     num = pc - ps - sc + 1.0
     den_p = (2.0 - 2.0 * ps).clamp_min(0).sqrt()    # (Q, 1)
     den_c = (2.0 - 2.0 * sc).clamp_min(0).sqrt()    # (Q, P)
-    return num / (den_p * den_c + eps)
+    out = num / (den_p * den_c + eps)
+    # A candidate (or prediction) equal to the anchor has no displacement and so no direction:
+    # score it 0, as F.normalize does on the per-query path, instead of amplifying rounding noise.
+    return torch.where((den_c > 1e-3) & (den_p > 1e-3), out, torch.zeros_like(out))
 
 
 def rank_in_pool(pred, pool, target_idx, anchor=None, mode=ABSOLUTE, best_case_ties=True,

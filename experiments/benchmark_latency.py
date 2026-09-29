@@ -29,7 +29,7 @@ from sentence_transformers import SentenceTransformer
 
 from embedplan.data import FactorizedTripletDataset, ProblemGroupedBatchSampler
 from embedplan.models import TransitionMLP, ProjectionHead, ProjectedTransitionModel
-from llm_transition_experiment import (
+from experiments.llm_ranking import (
     normalize_state, query_llm, embed_texts, CANDIDATE_POOL_SIZE, MODELS
 )
 
@@ -194,8 +194,9 @@ def benchmark_mlp(domain: str, model_name: str, device: torch.device,
 
                 t0 = time.perf_counter()
                 pred = model(s_batch, a_batch)
-                # Also include ranking (cosine sim against candidate pool) to be fair
-                pred_norm = F.normalize(pred, dim=-1)
+                # Timed: projection heads, transition network and output normalization.
+                # Scoring against a candidate pool is not inside this timed region.
+                F.normalize(pred, dim=-1)
 
                 if device.type == "cuda":
                     torch.cuda.synchronize()
@@ -418,7 +419,6 @@ def main():
     parser.add_argument("--projection_layers", type=int, default=2)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--dry_run", action="store_true", help="Skip real API calls")
-    parser.add_argument("--api_key", default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--skip_embedding", action="store_true",
                         help="Skip embedding model benchmark (faster, but incomplete picture)")
@@ -433,7 +433,7 @@ def main():
     else:
         device = torch.device(args.device)
 
-    api_key = args.api_key or os.environ.get("OPENROUTER_API_KEY", "")
+    api_key = os.environ.get("OPENROUTER_API_KEY", "")  # read from the environment, never from argv
     if not api_key and not args.dry_run:
         print("Warning: No API key set. Use --dry_run or set OPENROUTER_API_KEY.")
         args.dry_run = True

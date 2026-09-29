@@ -4,15 +4,14 @@ Everything routes through embedplan.scoring, so each of these can be run under
 either the ABSOLUTE or the DELTA scoring rule by passing `mode`.
 """
 
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Sequence
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
 from embedplan.data import ProblemGroupedBatchSampler
-from embedplan.scoring import (ABSOLUTE, hit_at_k, predict, project_pool,
-                               rank_in_candidates, rank_in_pool)
+from embedplan.scoring import (ABSOLUTE, hit_at_k, predict, rank_in_candidates, rank_in_pool)
 
 
 def _query_indices(tri, valid_idx, device, max_q, rng):
@@ -161,9 +160,12 @@ def open_set_abstention(model, S, A, tri, valid_idx, pool, device, seed: int,
     preds = predict(model, S, A, s_i, a_i)
     anchor = model.state_projection_head(S[s_i])
 
-    from embedplan.scoring import _prepare
-    pn, cn = _prepare(preds, pool, anchor, mode)
-    scores = pn @ cn.T if mode == ABSOLUTE else torch.einsum("qd,qcd->qc", pn, cn)
+    from embedplan.scoring import _delta_scores_shared_pool, _prepare
+    if mode == ABSOLUTE:
+        pn, cn = _prepare(preds, pool, None, mode)
+        scores = pn @ cn.T
+    else:  # a pool shared by every query: DELTA needs each query's own anchor
+        scores = _delta_scores_shared_pool(preds, pool, anchor)
 
     in_pool = scores.max(1).values
     masked = scores.clone().scatter_(1, p_i.unsqueeze(1), -1e9)
@@ -214,3 +216,93 @@ def action_disambiguation(model, S, A, tri, valid_idx, device, batch: int = 128,
             hits[k] += (ranks <= k).sum().item()
         total += B
     return {f"acc_action@{k}": hits[k] / max(1, total) for k in topk}
+
+
+# ---------------------------------------------------------------------------
+# Loader-based evaluators used by experiments/train.py and train_multi_domain.py.
+#
+# These are the evaluators behind the main-table Hit@k and action Acc@k numbers,
+# restored verbatim from the pre-refactor `eval_metrics.py` (only imports changed).
+# Each validation batch is its own candidate pool: row i's true next state is
+# column i, every other next state in the batch is a distractor, and a candidate
+# scoring exactly equal to the true one counts against it (worst-case ties).
+# ---------------------------------------------------------------------------
+
+def _compute_ranks(scores: torch.Tensor, break_ties: str = "worst") -> torch.Tensor:
+    scores = torch.nan_to_num(scores, nan=-1e9, posinf=1e9, neginf=-1e9)
+    if break_ties == "random":
+        scores = scores + 1e-6 * torch.randn_like(scores)
+
+    diag = torch.diag(scores).unsqueeze(1)
+    if break_ties == "worst":
+        ranks = (scores >= diag).sum(dim=1)
+    else:
+        ranks = 1 + (scores > diag).sum(dim=1)
+    return ranks
+
+
+@torch.inference_mode()
+def eval_action_disambiguation(model, loader, device, topk=(1, 5, 10)):
+    """Acc@k: for each state, does its own action rank the true next state highest
+    among the actions paired with the other states in the batch?"""
+    model.eval()
+    hit_at = {k: 0 for k in topk}
+    total = 0
+    for batch in loader:
+        s = batch["s_emb"].to(device)
+        a = batch["a_emb"].to(device)
+        sp = batch["sp_emb"].to(device)
+        B = s.size(0)
+        s_repeated = s.repeat_interleave(B, dim=0)
+        a_tiled = a.repeat(B, 1)
+
+        preds = model(s_repeated, a_tiled)
+        preds = preds.view(B, B, -1)
+        sp_proj = model.state_projection_head(sp)
+        sp_proj = F.normalize(sp_proj, dim=-1)
+        preds = F.normalize(preds, dim=-1)
+        scores = (preds @ sp_proj.unsqueeze(-1)).squeeze(-1)
+
+        ranks = _compute_ranks(scores, break_ties="worst")
+        for k in topk:
+            hit_at[k] += (ranks <= k).sum().item()
+        total += B
+
+    return {f"acc_action@{k}": hit_at[k] / max(1, total) for k in topk}
+
+
+@torch.inference_mode()
+def evaluate_hit_across_states(model, loader, device, cfg) -> Dict[str, float]:
+    """Hit@k of the true next state among the batch's next states (the published protocol)."""
+    from embedplan.models import ProjectedTransitionModel
+
+    model.eval()
+    hit_at = {k: 0 for k in cfg.topk}
+    total = 0
+    has_projection = isinstance(model, ProjectedTransitionModel)
+
+    for _, batch in enumerate(loader):
+        s = batch["s_emb"].to(device)
+        a = batch["a_emb"].to(device)
+        sp = batch["sp_emb"].to(device)
+
+        if has_projection:
+            pred = model(s, a)
+            sp_proj = model.state_projection_head(sp)
+            pred_norm = F.normalize(pred, dim=-1)
+            sp_proj_norm = F.normalize(sp_proj, dim=-1)
+            scores = pred_norm @ sp_proj_norm.T
+        else:
+            pred = model(s, a)
+            pred_norm = F.normalize(pred, p=2, dim=-1)
+            sp_norm = F.normalize(sp, p=2, dim=-1)
+            scores = pred_norm @ sp_norm.T
+
+        rank = _compute_ranks(scores, break_ties="worst")
+        max_k = scores.size(1)
+        for k in cfg.topk:
+            kk = min(k, max_k)
+            hit_at[k] += (rank <= kk).float().sum().item()
+        total += s.size(0)
+
+    return {f"hit@{k}": hit_at[k] / max(1, total) for k in cfg.topk}

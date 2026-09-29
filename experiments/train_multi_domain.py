@@ -1,4 +1,7 @@
-import argparse, torch, wandb
+import argparse
+import json
+
+import torch
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,6 +15,11 @@ from embedplan.models import ProjectionHead, ProjectedTransitionModel, model_sel
 from embedplan.config import Config, load_config
 from embedplan.utils import EvalConfig, fix_seeds, worker_init_fn
 from experiments.train import train_loop
+
+try:
+    import wandb
+except ImportError:  # optional: only needed when W&B logging is enabled in the config
+    wandb = None
 
 
 def arguments_parser():
@@ -187,6 +195,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     cfg = load_config(args.config)
     use_wandb = cfg.get('wandb', {}).get('enabled', True) and not args.no_wandb
+    if use_wandb and wandb is None:
+        raise SystemExit("W&B logging is enabled in the config but wandb is not installed: "
+                         "pip install wandb, or pass --no_wandb")
     wandb_project = args.wandb_project or cfg.get('wandb', {}).get('project', 'transition-function-prediction')
 
     train_ds, test_loaders, all_doms = [], {}, Config.domain_names
@@ -268,10 +279,15 @@ def main():
 
     torch.save(model.state_dict(), weights_path)
 
+    final = {}
     for d, l in test_loaders.items():
         m = evaluate_hit_across_states(model, l, device, EvalConfig())
+        final[d] = m
         print(f"Domain {d}: {m}")
         if use_wandb and not args.visualize_pca: wandb.log({f"final/test_{d}_{k}": v for k, v in m.items()})
+    results_path = Path(weights_path).with_suffix(".json")
+    results_path.write_text(json.dumps({"args": vars(args), "test_metrics": final}, indent=2))
+    print(f"Wrote {results_path}")
 
     if args.visualize_pca:
 

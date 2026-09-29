@@ -3,7 +3,7 @@
 Attribute names here are load-bearing: checkpoints written before the refactor
 key on `state_projection_head` / `action_projection_head` / `transition_model`,
 and on `net` / `ln` / `res` inside TransitionMLP. Do not rename without a
-migration for results/rebuttal/ckpt_*.pt.
+migration for results/runs/ckpt_*.pt.
 
 The residual MLP outperforms the hypernetwork across encoders and protocols, so
 it is the default everywhere; TransitionHyper is kept for the ablation.

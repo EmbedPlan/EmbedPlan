@@ -77,6 +77,9 @@ def paper_hit(model, S, A, tri, ds, valid_idx, device, split: str, seed: int,
     anchor = model.state_projection_head(S[s_i])
     pool = projected_pool if projected_pool is not None else model.state_projection_head(S)
     P = pool.shape[0]
+    # Drawn with replacement from all states, as for the published numbers, so a distractor can
+    # occasionally be the true next state itself; under worst-case ties that copy then counts
+    # against the truth (at most ~(pool_size - 1) / P of queries). Kept to reproduce the paper.
     distractors = torch.as_tensor(rng.integers(0, P, size=(len(q), pool_size - 1)), device=device)
     cand = torch.cat([p_i.unsqueeze(1), distractors], dim=1)
     ranks = rank_in_candidates(preds, pool[cand], anchor=anchor, mode=mode,

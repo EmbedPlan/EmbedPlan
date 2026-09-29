@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA_PATH = Path(os.environ.get("EMBEDPLAN_DATA", REPO_ROOT / "data"))
 
 RESULTS_ROOT = Path(os.environ.get("EMBEDPLAN_RESULTS", REPO_ROOT / "results"))
-REBUTTAL_DIR = RESULTS_ROOT / "rebuttal"      # experiments run during the NeurIPS discussion
+RUNS_DIR = RESULTS_ROOT / "runs"              # closed-loop / pool-sweep runs and their checkpoints
 ANALYSIS_DIR = RESULTS_ROOT / "analysis"      # floors, variance audit, scoring-rule comparisons
 CURVE_DIR = RESULTS_ROOT / "problem_curve"    # problem-count learning curve
 

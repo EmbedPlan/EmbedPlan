@@ -13,7 +13,7 @@ leave_one_problem_out   : train on a chosen subset of problems, test on exactly 
 
 import ast
 from collections import defaultdict
-from typing import Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -246,6 +246,8 @@ def grouped_split_by_problem(dataset, train_frac=0.9, seed=0, *, return_problem_
     rng.shuffle(unique)
 
     n_train = int(round(len(unique) * train_frac))
+    # At least one problem is always held out, even for train_frac=1.0 (which train.py passes in
+    # cross-domain mode, so one source problem is left out there). Kept to reproduce the paper.
     n_train = max(1, min(len(unique) - 1, n_train)) if len(unique) > 1 else 1
     train_set, valid_set = set(unique[:n_train]), set(unique[n_train:])
 

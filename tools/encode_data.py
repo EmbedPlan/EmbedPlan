@@ -1,16 +1,13 @@
 import os
-import ast
-import random
 import argparse
 import pickle
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any, Iterator, Union
+from typing import Dict, Tuple
 
-import pandas as pd
 import torch
 from tqdm import tqdm, trange
 
-from embedplan.encoders import *
+from embedplan.encoders import Llama3ModelEncoder, SentenceTransformerEncoder
 from embedplan.prompts import create_prompt
 from embedplan.config import Config
 
@@ -22,20 +19,9 @@ DATA_DIR = Config.data_states_path
 def get_encoder(name: str):
     """Factory function to get the appropriate encoder."""
     name_lower = name.lower()
-    if name_lower == 'gemini':
-        return GeminiEncoder()
-    elif 'vertex' in name_lower:
-        return VertexEncoder(model_name=name)
-    elif 'llama' in name_lower or 'llama3' in name_lower or 'qwen' in name_lower:
-        # Accepts model names like "llama3", "llama-3", "meta-llama/Llama-3.1-8B-Instruct", etc.
+    if 'llama' in name_lower or 'qwen' in name_lower:
+        # Decoder-only LLMs, mean-pooled: meta-llama/Llama-3.3-70B-Instruct, Qwen/Qwen2.5-7B-Instruct
         return Llama3ModelEncoder(model_name=name)
-    elif 'text-embedding' in name_lower or name_lower == 'openai':
-        # Handle OpenAI embedding models
-        return OpenAIEncoder()
-    elif 'voyage' in name_lower:
-        # Handle Voyage AI embedding models
-        from text_embeddings import VoyageEncoder
-        return VoyageEncoder()
     elif 'sentence-transformers' in name_lower or 'all-mpnet' in name_lower or 'all-minilm' in name_lower or 'bge' in name_lower:
         # Handle sentence-transformers models
         return SentenceTransformerEncoder(model_name=name)
@@ -221,7 +207,7 @@ def process_domain(domain_name: str, args: argparse.Namespace,
 
 def main():
     parser = argparse.ArgumentParser("Batch encoding of domain texts")
-    parser.add_argument("--embeddings_model_name", type=str, default="text-embedding-3-large")
+    parser.add_argument("--embeddings_model_name", type=str, default="meta-llama/Llama-3.3-70B-Instruct")
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--text_type", type=str, default='natural', choices=["pddl", "natural", "rephrased"])
     parser.add_argument("--checkpoint_every", type=int, default=100)

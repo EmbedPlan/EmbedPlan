@@ -6,7 +6,7 @@ Two purposes:
    ProblemGroupedBatchSampler (batch 128, same problem => hard, near-miss distractors).
    To compare like with like, EmbedPlan must be scored on the same pool construction.
 
-2. De-confounding the generalization gap. The submission's Interpolation numbers use
+2. De-confounding the generalization gap. The paper's Interpolation numbers use
    uniformly-drawn batch distractors while Extrapolation uses same-problem distractors,
    so split difficulty and negative-mining difficulty are entangled. Scoring both splits
    with problem-grouped pools separates them.
@@ -23,7 +23,7 @@ import torch
 import torch.nn.functional as F
 
 from embedplan import build_model, load_domain, make_split
-from embedplan.config import REBUTTAL_DIR as OUT_DIR
+from embedplan.config import RUNS_DIR as OUT_DIR
 from embedplan.data import ProblemGroupedBatchSampler
 
 

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="402" viewBox="0 0 820 402" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-labelledby="t d">
+<title id="t">Hit@5 by evaluation protocol</title>
+<desc id="d">Hit@5 among 128 candidates with the Llama-3.3-70B encoder, mean and standard error over nine domains: Interpolation 99.7 plus or minus 0.1; Plan-Variant 51.2 plus or minus 5.5; Extrapolation 54.6 plus or minus 5.5; Multi-Domain 37.2 plus or minus 3.8; Leave-One-Out 9.2 plus or minus 1.2; Cross-Domain 6.6 plus or minus 0.5; chance 3.9.</desc>
+<rect width="820" height="402" rx="8" fill="#fcfcfb"/>
+<text x="24" y="34" font-size="17" font-weight="600" fill="#0b0b0b">Accuracy follows what the model has observed</text>
+<text x="24" y="58" font-size="13" fill="#52514e">Hit@5 (%) among 128 candidates · Llama-3.3-70B encoder · mean ± SE over 9 domains (paper, Table 5)</text>
+<line x1="250.0" y1="84" x2="250.0" y2="346" stroke="#c3c2b7" stroke-width="1"/>
+<text x="250.0" y="364" font-size="12" fill="#898781" text-anchor="middle">0</text>
+<line x1="375.0" y1="84" x2="375.0" y2="346" stroke="#e1e0d9" stroke-width="1"/>
+<text x="375.0" y="364" font-size="12" fill="#898781" text-anchor="middle">25</text>
+<line x1="500.0" y1="84" x2="500.0" y2="346" stroke="#e1e0d9" stroke-width="1"/>
+<text x="500.0" y="364" font-size="12" fill="#898781" text-anchor="middle">50</text>
+<line x1="625.0" y1="84" x2="625.0" y2="346" stroke="#e1e0d9" stroke-width="1"/>
+<text x="625.0" y="364" font-size="12" fill="#898781" text-anchor="middle">75</text>
+<line x1="750.0" y1="84" x2="750.0" y2="346" stroke="#e1e0d9" stroke-width="1"/>
+<text x="750.0" y="364" font-size="12" fill="#898781" text-anchor="middle">100</text>
+<text x="236" y="101.0" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="end">Interpolation</text>
+<text x="236" y="117.0" font-size="11.5" fill="#52514e" text-anchor="end">same problems</text>
+<path d="M250.0,92.0 H744.5 Q748.5,92.0 748.5,96.0 V110.0 Q748.5,114.0 744.5,114.0 H250.0 Z" fill="#2a78d6"/>
+<text x="757.0" y="108.0" font-size="13" font-weight="600" fill="#0b0b0b">99.7</text>
+<text x="236" y="145.0" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="end">Plan-Variant</text>
+<text x="236" y="161.0" font-size="11.5" fill="#52514e" text-anchor="end">same problems, unseen plans</text>
+<path d="M250.0,136.0 H502.0 Q506.0,136.0 506.0,140.0 V154.0 Q506.0,158.0 502.0,158.0 H250.0 Z" fill="#2a78d6"/>
+<line x1="478.5" y1="147.0" x2="533.5" y2="147.0" stroke="#52514e" stroke-width="1.5"/>
+<line x1="478.5" y1="142.0" x2="478.5" y2="152.0" stroke="#52514e" stroke-width="1.5"/>
+<line x1="533.5" y1="142.0" x2="533.5" y2="152.0" stroke="#52514e" stroke-width="1.5"/>
+<text x="541.5" y="152.0" font-size="13" font-weight="600" fill="#0b0b0b">51.2</text>
+<text x="236" y="189.0" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="end">Extrapolation</text>
+<text x="236" y="205.0" font-size="11.5" fill="#52514e" text-anchor="end">same domain, unseen problems</text>
+<path d="M250.0,180.0 H519.0 Q523.0,180.0 523.0,184.0 V198.0 Q523.0,202.0 519.0,202.0 H250.0 Z" fill="#2a78d6"/>
+<line x1="495.5" y1="191.0" x2="550.5" y2="191.0" stroke="#52514e" stroke-width="1.5"/>
+<line x1="495.5" y1="186.0" x2="495.5" y2="196.0" stroke="#52514e" stroke-width="1.5"/>
+<line x1="550.5" y1="186.0" x2="550.5" y2="196.0" stroke="#52514e" stroke-width="1.5"/>
+<text x="558.5" y="196.0" font-size="13" font-weight="600" fill="#0b0b0b">54.6</text>
+<text x="236" y="233.0" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="end">Multi-Domain</text>
+<text x="236" y="249.0" font-size="11.5" fill="#52514e" text-anchor="end">same domain, one model for all</text>
+<path d="M250.0,224.0 H432.0 Q436.0,224.0 436.0,228.0 V242.0 Q436.0,246.0 432.0,246.0 H250.0 Z" fill="#2a78d6"/>
+<line x1="417.0" y1="235.0" x2="455.0" y2="235.0" stroke="#52514e" stroke-width="1.5"/>
+<line x1="417.0" y1="230.0" x2="417.0" y2="240.0" stroke="#52514e" stroke-width="1.5"/>
+<line x1="455.0" y1="230.0" x2="455.0" y2="240.0" stroke="#52514e" stroke-width="1.5"/>
+<text x="463.0" y="240.0" font-size="13" font-weight="600" fill="#0b0b0b">37.2</text>
+<text x="236" y="277.0" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="end">Leave-One-Out</text>
+<text x="236" y="293.0" font-size="11.5" fill="#52514e" text-anchor="end">eight other domains</text>
+<path d="M250.0,268.0 H292.0 Q296.0,268.0 296.0,272.0 V286.0 Q296.0,290.0 292.0,290.0 H250.0 Z" fill="#2a78d6"/>
+<line x1="290.0" y1="279.0" x2="302.0" y2="279.0" stroke="#52514e" stroke-width="1.5"/>
+<line x1="290.0" y1="274.0" x2="290.0" y2="284.0" stroke="#52514e" stroke-width="1.5"/>
+<line x1="302.0" y1="274.0" x2="302.0" y2="284.0" stroke="#52514e" stroke-width="1.5"/>
+<text x="310.0" y="284.0" font-size="13" font-weight="600" fill="#0b0b0b">9.2</text>
+<text x="236" y="321.0" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="end">Cross-Domain</text>
+<text x="236" y="337.0" font-size="11.5" fill="#52514e" text-anchor="end">one other domain</text>
+<path d="M250.0,312.0 H279.0 Q283.0,312.0 283.0,316.0 V330.0 Q283.0,334.0 279.0,334.0 H250.0 Z" fill="#2a78d6"/>
+<text x="293.5" y="328.0" font-size="13" font-weight="600" fill="#0b0b0b">6.6</text>
+<line x1="269.5" y1="84" x2="269.5" y2="346" stroke="#898781" stroke-width="1.5" stroke-dasharray="4 4"/>
+<text x="275.5" y="80" font-size="12" fill="#898781">chance 3.9</text>
+</svg>

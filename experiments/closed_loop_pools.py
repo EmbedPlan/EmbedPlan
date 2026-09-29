@@ -1,7 +1,7 @@
 """Closed-loop rollout as a function of candidate-pool size, from a saved checkpoint.
 
 The main harness rolls out against the full domain state pool (hardest setting).
-The submission's headline numbers use a 128-candidate pool, so to compare like with
+The paper's headline numbers use a 128-candidate pool, so to compare like with
 like we re-run the same trained model at several pool sizes. No retraining.
 
 Pool construction mirrors the paper: every true successor needed by the evaluated
@@ -13,14 +13,13 @@ Usage:
 
 import argparse
 import json
-from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
 from embedplan import build_model, load_domain, make_split
-from embedplan.config import REBUTTAL_DIR as OUT_DIR
+from embedplan.config import RUNS_DIR as OUT_DIR
 from embedplan.data import build_trajectories
 
 

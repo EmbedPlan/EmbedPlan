@@ -22,7 +22,6 @@ Usage:
 import argparse
 import glob
 import json
-import os
 from collections import defaultdict
 
 import numpy as np

@@ -38,7 +38,7 @@ from embedplan.finetune import TextBank
 from embedplan.losses import compute_action_loss, compute_infonce_loss
 from embedplan.models import ProjectionHead, ProjectedTransitionModel, TransitionMLP
 from embedplan.paper_protocol import paper_hit
-from embedplan.symbolic import (LiftedActionModel, jaccard, schema_index, symbolic_frame)
+from embedplan.symbolic import (LiftedActionModel, schema_index, symbolic_frame)
 from embedplan.utils import resolve_device
 from experiments.tfidf_baseline import featurize
 

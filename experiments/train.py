@@ -1,5 +1,5 @@
-import random
 import argparse
+import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Optional, Callable
@@ -11,7 +11,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split
-import wandb
+
+try:
+    import wandb
+except ImportError:  # optional: only needed when W&B logging is enabled in the config
+    wandb = None
 
 from embedplan.data import FactorizedTripletDataset, ProblemGroupedBatchSampler, grouped_split_by_problem, grouped_split_by_plan
 from embedplan.evaluation import eval_action_disambiguation, evaluate_hit_across_states
@@ -59,7 +63,8 @@ def train_loop(model: nn.Module, train_loader: DataLoader, valid_loader: Optiona
     epochs_without_improvement = 0
     opt = torch.optim.AdamW(model.parameters(), lr=lr)
     warmup = min(10, epochs // 10)
-    scheduler = torch.optim.lr_scheduler.LinearLR(opt, start_factor=0.1, end_factor=1.0, total_iters=warmup)
+    scheduler = (torch.optim.lr_scheduler.LinearLR(opt, start_factor=0.1, end_factor=1.0, total_iters=warmup)
+                 if warmup > 0 else None)  # runs under 10 epochs train at the requested LR from the start
 
     for epoch in tbar:
         model.train()
@@ -252,6 +257,8 @@ def arguments_parser():
     parser.add_argument("--wandb_project", type=str, default=None, help="Wandb project name")
     parser.add_argument("--no_wandb", action="store_true")
     parser.add_argument("--eval_only", action="store_true", help="Only evaluate untrained model without training")
+    parser.add_argument("--num_workers", type=int, default=None,
+                        help="DataLoader workers (default: 4, or 8 for problem_grouped); 0 is fastest for small runs")
     return parser.parse_args()
 
 
@@ -267,6 +274,9 @@ def main():
     config = load_config(args.config)
     wandb_cfg, training_cfg, results_cfg = config.get('wandb', {}), config.get('training', {}), config.get('results', {})
     use_wandb = wandb_cfg.get('enabled', True) and not args.no_wandb
+    if use_wandb and wandb is None:
+        raise SystemExit("W&B logging is enabled in the config but wandb is not installed: "
+                         "pip install wandb, or pass --no_wandb")
     wandb_project = args.wandb_project or wandb_cfg.get('project', 'transition-function-prediction')
 
     # Handle cross-domain training
@@ -302,10 +312,10 @@ def main():
         else:
             save_path = Path(f"{save_prefix}_{train_domain}.pt") if args.all_domains else Path(f"{save_prefix}.pt")
 
-        if save_path.exists():
-            print(f"Found existing weights at {save_path}, running 1 epoch for wandb logging...")
-            args.epochs = 1
-            # Continue with normal flow - model will be loaded below if needed, or trained for 1 epoch
+        results_path = save_path.with_suffix(".json")
+        if results_path.exists():
+            print(f"Results already at {results_path}, skipping")
+            continue
 
         if use_wandb:
             run_name = f"{train_domain}_{args.model_type}_tau{args.tau}"
@@ -350,21 +360,21 @@ def main():
 
         model.to(device)
         save_path.parent.mkdir(parents=True, exist_ok=True)
+        nw = lambda default: default if args.num_workers is None else args.num_workers
 
         if args.split_type == "random":
             train_indices, _ = train_test_split(range(len(train_dataset)), test_size=0.2, random_state=42)
-            # # Modified to split by plans instead of purely random indices
-            # train_indices, valid_indices = grouped_split_by_plan(train_dataset, train_frac=0.8, seed=args.seed)
             train_subset = Subset(train_dataset, train_indices)
 
             if cross_domain:
                 valid_indices = list(range(len(test_dataset)))
                 valid_subset = Subset(test_dataset, valid_indices)
             else:
+                _, valid_indices = train_test_split(range(len(test_dataset)), test_size=0.2, random_state=42)
                 valid_subset = Subset(test_dataset, valid_indices)
 
-            train_loader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
-            valid_loader = DataLoader(valid_subset, batch_size=args.val_batch_size, shuffle=False, num_workers=4, pin_memory=True)
+            train_loader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True, num_workers=nw(4), pin_memory=True)
+            valid_loader = DataLoader(valid_subset, batch_size=args.val_batch_size, shuffle=False, num_workers=nw(4), pin_memory=True)
         elif args.split_type == "plan_grouped":
             train_indices, valid_indices = grouped_split_by_plan(train_dataset, train_frac=0.8, seed=args.seed)
             train_subset = Subset(train_dataset, train_indices)
@@ -375,8 +385,8 @@ def main():
             else:
                 valid_subset = Subset(test_dataset, valid_indices)
 
-            train_loader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
-            valid_loader = DataLoader(valid_subset, batch_size=args.val_batch_size, shuffle=False, num_workers=4, pin_memory=True)
+            train_loader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True, num_workers=nw(4), pin_memory=True)
+            valid_loader = DataLoader(valid_subset, batch_size=args.val_batch_size, shuffle=False, num_workers=nw(4), pin_memory=True)
         else:  # problem_grouped
             train_idxs, _, _ = grouped_split_by_problem(train_dataset, train_frac=1.0 if cross_domain else 0.8, seed=args.seed)
             train_bs = ProblemGroupedBatchSampler(train_dataset, batch_size=args.batch_size, indices=train_idxs, shuffle_problems=True, shuffle_within_problem=True, seed=args.seed)
@@ -389,15 +399,18 @@ def main():
                 _, valid_idxs, _ = grouped_split_by_problem(test_dataset, train_frac=0.8, seed=args.seed)
 
             valid_bs = ProblemGroupedBatchSampler(test_dataset, batch_size=args.val_batch_size, indices=valid_idxs, shuffle_problems=False, shuffle_within_problem=False)
-            train_loader = DataLoader(train_dataset, batch_sampler=train_bs, num_workers=8, pin_memory=True, worker_init_fn=worker_init_fn)
-            valid_loader = DataLoader(test_dataset, batch_sampler=valid_bs, num_workers=8, pin_memory=True, worker_init_fn=worker_init_fn)
+            train_loader = DataLoader(train_dataset, batch_sampler=train_bs, num_workers=nw(8), pin_memory=True, worker_init_fn=worker_init_fn)
+            valid_loader = DataLoader(test_dataset, batch_sampler=valid_bs, num_workers=nw(8), pin_memory=True, worker_init_fn=worker_init_fn)
 
         eval_cfg = EvalConfig()
 
         # train_loop will handle epochs=0 case by skipping training and only running eval
-        train_loop(model, train_loader, valid_loader, device, epochs=args.epochs, lr=args.lr,
-                   eval_cfg=eval_cfg, tau=args.tau, config=config, use_wandb=use_wandb,
-                   save_path=save_path, action_contrastive_weight=args.action_contrastive_weight)
+        metrics = train_loop(model, train_loader, valid_loader, device, epochs=args.epochs, lr=args.lr,
+                             eval_cfg=eval_cfg, tau=args.tau, config=config, use_wandb=use_wandb,
+                             save_path=save_path, action_contrastive_weight=args.action_contrastive_weight)
+        results_path.write_text(json.dumps({"train_domain": train_domain, "test_domain": test_domain,
+                                            "args": vars(args), "metrics": metrics}, indent=2))
+        print(f"Wrote {results_path}")
 
         if use_wandb:
             wandb.finish()

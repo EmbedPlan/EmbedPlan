@@ -66,7 +66,7 @@ OUT_DIR = RESULTS_ROOT / "tfidf"
 
 
 # TF-IDF is implemented here rather than pulled from sklearn on purpose: sklearn is
-# absent from the sl_llada env that produced every BGE-M3 number, and running this arm
+# absent from the reference environment that produced every BGE-M3 number, and running this arm
 # under a different env would put a different torch build in the head-training path —
 # which is the one thing this comparison has to hold fixed.
 

@@ -1,7 +1,7 @@
 """Score a saved frozen-encoder checkpoint with the canonical evaluators.
 
 `experiments/closed_loop.py` saves a checkpoint and reports the pool sweep, but not
-matched_pool_eval — so the published Llama-3.3-70B runs in results/rebuttal/ cannot be
+matched_pool_eval — so the published Llama-3.3-70B runs in results/runs/ cannot be
 placed in the same table as the baselines without re-scoring them here.
 
 This uses embedplan.evaluation.matched_pool_eval and pool_sweep directly, the same
@@ -21,7 +21,7 @@ import json
 import torch
 
 from embedplan import build_model, load_domain, make_split
-from embedplan.config import ANALYSIS_DIR, REBUTTAL_DIR
+from embedplan.config import ANALYSIS_DIR, RUNS_DIR
 from embedplan.evaluation import matched_pool_eval, pool_sweep
 from embedplan.scoring import project_pool
 from embedplan.utils import resolve_device
@@ -51,7 +51,7 @@ def main():
     out = json.loads(path.read_text()) if path.exists() else {}
 
     for tag in tags:
-        ck_path = REBUTTAL_DIR / f"ckpt_{tag}.pt"
+        ck_path = RUNS_DIR / f"ckpt_{tag}.pt"
         if not ck_path.exists():
             print(f"  {tag:42s} NO CHECKPOINT — skipped", flush=True)
             continue

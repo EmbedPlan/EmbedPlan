@@ -1,161 +1,260 @@
-# EmbedPlan — reproduction code
+<div align="center">
 
-Minimal code accompanying *Textual Planning with Explicit Latent Transitions*.
-Learns an action-conditioned transition function in a **frozen LLM embedding space**
-and evaluates it by nearest-neighbour retrieval over a candidate pool.
+# Textual Planning with Explicit Latent Transitions
 
-No data, embeddings, checkpoints, or result files are included. Everything below
-regenerates from source.
+**EmbedPlan: a fast transition model for planning, learned on top of frozen LLM text embeddings**
 
-## Install
+Eliezer Shlomi<sup>1\*</sup>, Ido Levy<sup>2\*</sup>, Eilam Shapira<sup>1</sup>, Michael Katz<sup>2</sup>, Guy Uziel<sup>2</sup>,
+Segev Shlomov<sup>2</sup>, Nir Mashkif<sup>2</sup>, Roi Reichart<sup>1</sup>, Sarah Keren<sup>1</sup>
+
+<sup>1</sup>Technion – Israel Institute of Technology &nbsp; <sup>2</sup>IBM &nbsp; <sup>\*</sup>Equal contribution
+
+[![arXiv](https://img.shields.io/badge/arXiv-2602.04557-b31b1b.svg)](https://arxiv.org/abs/2602.04557)
+[![tests](https://github.com/dolev31/EmbedPlan/actions/workflows/tests.yml/badge.svg)](https://github.com/dolev31/EmbedPlan/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+
+</div>
+
+<p align="center">
+  <img src="assets/embedplan_overview.png" width="100%"
+       alt="EmbedPlan architecture. A Blocksworld state and the action pick-up(C) enter a frozen LLM encoder. Learned heads project both embeddings into a latent space, a small network predicts the next-state embedding, and the nearest real state is returned as the next state.">
+</p>
+
+Planning needs a **transition model**: given a state and an action, what is the next state?
+When a large language model plays that role, every next state is generated token by token,
+which makes searching over many possible futures slow and expensive. **EmbedPlan** replaces
+generation with retrieval. It embeds natural-language descriptions of the state and the action
+with a **frozen** LLM, predicts the embedding of the next state with a lightweight learned
+network, and returns the closest real state. Because the network trains on top of any
+encoder, EmbedPlan is also a controlled way to compare text representations for learning
+transitions.
+
+This repository holds the code for the paper: the model, its training objectives, the
+evaluation protocols, every reference method, and the scripts behind the paper's tables.
+
+## Results at a glance
+
+We evaluate on **9 classical planning domains** from ACPBench (states rendered as natural
+language, nearly 3 million transitions) under six protocols that hold out progressively
+more of the data. Hit@5 is the share of queries whose true next state ranks in the top 5 of
+128 candidates (chance: 3.9%). Llama-3.3-70B encoder, mean ± SE across the nine domains
+(paper, Table 5):
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/hit5_by_protocol_dark.svg">
+    <img src="assets/hit5_by_protocol_light.svg" width="100%"
+         alt="Hit@5 by protocol: Interpolation 99.7, Plan-Variant 51.2, Extrapolation 54.6, Multi-Domain 37.2, Leave-One-Out 9.2, Cross-Domain 6.6, against a chance level of 3.9.">
+  </picture>
+</p>
+
+| Protocol | What the test data share with training | Hit@5 (%) |
+|---|---|---:|
+| Interpolation | the same problems (held-out transitions) | **99.7 ± 0.1** |
+| Plan-Variant | the same problems, unseen optimal plans | 51.2 ± 5.5 |
+| Extrapolation | the same domain, unseen problems | 54.6 ± 5.5 |
+| Multi-Domain | the same domain (one model for all nine) | 37.2 ± 3.8 |
+| Leave-One-Out | eight other domains | 9.2 ± 1.2 |
+| Cross-Domain | one other domain | 6.6 ± 0.5 |
+
+Larger encoders extrapolate better, but none closes the gap (Hit@5 %, paper, Table 6):
+
+| Encoder | Parameters | Interpolation | Extrapolation |
+|---|---:|---:|---:|
+| MPNet | 110M | 70.0 ± 15 | 26.8 ± 6.3 |
+| BGE-M3 | 568M | 99.6 ± 0.2 | 36.3 ± 5.0 |
+| Qwen2.5-7B | 7B | 99.5 ± 0.2 | 47.7 ± 4.9 |
+| Llama-3.3-70B | 70B | 99.7 ± 0.1 | 54.6 ± 5.5 |
+
+- **Multi-step rollouts.** Feeding each prediction back as the next input, after snapping it
+  to the nearest real state, keeps multi-step accuracy within 92–99% of the accuracy obtained
+  with the true state at each step (Interpolation, 1,000 candidate states).
+- **Fast.** With cached encoder outputs, the projection heads and transition network take
+  about 0.17 ms per transition (`experiments/benchmark_latency.py`), versus about 1.9 s for
+  generating the next state through an LLM API.
+- **Where it stops.** Accuracy is lower on unseen problems and near chance on unseen domains,
+  and the controlled comparison traces this limit to the state representation rather than to
+  the learned transition. See the paper for the full analysis.
+
+## Installation
 
 ```bash
+git clone https://github.com/dolev31/EmbedPlan.git
+cd EmbedPlan
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[all]"        # or: pip install -e .  for the core library only
 ```
 
-Python 3.10+. A GPU is required for encoding and recommended for training
-(each transition network trains in minutes; encoding a domain with a 70B encoder
-takes hours).
+Python 3.10+. The core library needs only PyTorch, NumPy, pandas, SciPy and scikit-learn.
+Optional extras: `encoders` (build embeddings with Hugging Face models), `lora` (encoder
+fine-tuning), `llm` (LLM baselines through OpenRouter), `viz` (figures, W&B logging),
+`dev` (tests and lint). A GPU is needed to encode with the large LLMs and recommended for
+training; the unit tests and the quickstart run on a CPU.
 
-Always invoke drivers as modules **from the repository root** — they import
-`embedplan` by package name and there is no installed egg:
+## Quickstart: the whole pipeline in seconds, no data or GPU
+
+`tools/make_toy_domain.py` writes a tiny synthetic ferry-like domain (6 problems, 171 states,
+hashed bag-of-words "embeddings") in exactly the on-disk format the real data uses. Training
+the real driver on it checks your install end to end:
 
 ```bash
-python -m experiments.train --domain ferry --split_type random --seed 0
+python -m tools.make_toy_domain --out /tmp/embedplan_toy
+EMBEDPLAN_DATA=/tmp/embedplan_toy python -m experiments.train --domain toy --model_name toy-hash-bow \
+    --split_type problem_grouped --epochs 100 --batch_size 32 --val_batch_size 32 --no_wandb \
+    --use_projection --projection_dim 32 --hidden_size 64 --n_layers 2 --use_layer_norm \
+    --num_workers 0 --save_prefix /tmp/embedplan_toy/job
+cat /tmp/embedplan_toy/job.json      # best_hit@1 ≈ 0.8, best_hit@5 = 1.0 on held-out toy problems
 ```
 
-Data and result roots default to `./data` and `./results`; override with the
-`EMBEDPLAN_DATA` and `EMBEDPLAN_RESULTS` environment variables.
+This takes about 5 seconds on a laptop CPU. It is a smoke test, not a benchmark: the toy
+domain is far easier than the paper's.
 
-## Layout
+## Using the library
 
-```
-embedplan/        library — all reusable logic
-  config.py         paths, DOMAINS, factorized data + embedding loaders
-  data.py           FactorizedTripletDataset, splits, trajectory construction
-  models.py         TransitionMLP / TransitionHyper / ProjectionHead
-  training.py       train_transition
-  losses.py         InfoNCE + action-disambiguation loss
-  scoring.py        hit_at_k, ABSOLUTE / DELTA scoring, project_pool
-  evaluation.py     pool_sweep, matched_pool_eval, open_set_abstention
-  paper_protocol.py the published evaluator (see "Evaluation protocol" below)
-  rollout.py        multi-step closed-loop rollout
-  finetune.py       LoRA / frozen encoder fine-tuning
-  encoders.py       encoder wrappers
-  baselines.py      identity / offset (grounded) / offset (lifted) floors
-  symbolic.py       lifted STRIPS operator induction
-  prompts.py        state -> prompt text
+```python
+import torch
+from types import SimpleNamespace
+from embedplan import build_model
+from embedplan.losses import compute_infonce_loss
+from embedplan.scoring import rank_in_candidates, hit_at_k
 
-tools/            data generation + embedding encoding
-experiments/      experiment drivers   (python -m experiments.X)
-analysis/         aggregation + tables (python -m analysis.X)
-scripts/          sweep runners and a SLURM submitter
-configs/          W&B + checkpoint/eval cadence
+args = SimpleNamespace(projection_dim=128, projection_layers=2, hidden_size=128, n_layers=2)
+model = build_model(state_dim=1024, action_dim=1024, args=args, device="cpu")  # BGE-M3 width
+
+s, a, s_next = torch.randn(32, 1024), torch.randn(32, 1024), torch.randn(32, 1024)  # frozen embeddings
+pred = model(s, a)                                                   # predicted next state, 128-d
+loss = compute_infonce_loss(pred, model.state_projection_head(s_next), tau=0.07)
+
+candidates = model.state_projection_head(torch.randn(32, 128, 1024))  # true next state at position 0
+print(hit_at_k(rank_in_candidates(pred, candidates), topk=(1, 5)))  # untrained, random inputs: chance level
 ```
 
-## Pipeline
+## Data
 
-**1. Generate transition data** from PDDL domains (ACPBench sources):
+The paper uses 9 domains from ACPBench (Blocksworld, Depot, Ferry, Floortile, Goldminer,
+Grid, Logistics, Rovers, Satellite) with states rendered as natural language. As stated in
+the paper, **the processed transition datasets will be released upon acceptance**; this
+section will then link them. The loaders read this layout under `$EMBEDPLAN_DATA`
+(default `./data`):
 
-```bash
-python -m tools.generate_data --domains ferry --generation_only
+```
+original_df_pkls_factorized/<domain>-test.pkl            transitions: problem, plan, state and action indices
+original_df_pkls_factorized/<domain>-test_values.pkl     the state and plan texts they index
+full_embeddings/<encoder>/original/<domain>.pt           state embeddings
+full_embeddings/<encoder>/original/<domain>_prompt_to_index.pkl
+full_embeddings_actions/<encoder>/original/<domain>_actions.pt
+full_embeddings_actions/<encoder>/original/<domain>_actions_index.pkl
 ```
 
-**2. Encode states and actions** with a frozen encoder:
+Given the processed transitions, encode states and actions with any of the paper's four
+encoders (`sentence-transformers/all-mpnet-base-v2`, `BAAI/bge-m3`,
+`Qwen/Qwen2.5-7B-Instruct`, `meta-llama/Llama-3.3-70B-Instruct`):
 
 ```bash
 python -m tools.encode_data    --domains ferry --embeddings_model_name BAAI/bge-m3
-python -m tools.encode_actions --embeddings_model_name BAAI/bge-m3
+python -m tools.encode_actions --domains ferry --embeddings_model_name BAAI/bge-m3
 ```
 
-Encoders used in the paper: `sentence-transformers/all-mpnet-base-v2` (768),
-`BAAI/bge-m3` (1024), `Qwen/Qwen2.5-7B-Instruct` (3584),
-`meta-llama/Llama-3.3-70B-Instruct` (8192, default).
+Results go to `$EMBEDPLAN_RESULTS` (default `./results`). W&B logging is off by default
+(`configs/config.yaml`).
 
-**3. Train and evaluate:**
+## Reproducing the paper
 
-```bash
-python -m experiments.train --domain ferry --split_type random --seed 0
-```
+`scripts/reproduce.sh` runs each training grid with the settings behind the paper's tables
+(residual MLP in a learned 128-d space, InfoNCE with τ = 0.07 plus the action-disambiguation
+term, AdamW at 4e-5, seeds 0, 1, 2). Every run writes a JSON file and is skipped if that file
+exists, so the script resumes where it stopped.
 
-This writes one JSON holding `E1_pool_sweep` (Hit@k at pool sizes
-128/512/2048/8192/full), `E3_open_set`, and `E4_closed_loop`.
+| Paper result | Command |
+|---|---|
+| Interpolation and Extrapolation Hit@k and action Acc@k, per domain and encoder (Tables 5, 6 and the appendix) | `bash scripts/reproduce.sh main [ENCODER]` |
+| Untrained-network floor | `bash scripts/reproduce.sh untrained` |
+| Plan-Variant | `bash scripts/reproduce.sh plan` |
+| Cross-Domain (9 × 8 pairs) | `bash scripts/reproduce.sh cross` |
+| Leave-One-Out | `bash scripts/reproduce.sh loo` |
+| Multi-Domain (one model for all nine domains) | `bash scripts/reproduce.sh multi` |
+| Candidate-pool scaling and multi-step rollout | `python -m experiments.closed_loop --domain ferry --split random --seed 0`, then `python -m experiments.closed_loop_pools --tag ferry_random_seed0 --sizes 1000` |
+| Reference methods: character n-grams, bag of words, TF-IDF, literal sets, STRIPS induction, identity and offset floors | `python -m experiments.baseline_sweep --out results/analysis/protocol_parts/all.json`, then `python -m analysis.protocol_tables --latex --metric hit@5` |
+| Unseen grounded actions and lifted STRIPS induction | `python -m experiments.symbolic_baseline --splits problem_grouped --seeds 0` |
+| One-hot (tabular) transition model | `python -m experiments.tabular --domain logistics --split problem_grouped` |
+| Frozen vs. LoRA-adapted encoder | `python -m experiments.finetune_encoder --domain ferry --split problem_grouped --seed 0 --lora_rank 16`, then `python -m analysis.warmstart_table --metric full_hit@1 --split problem_grouped` |
+| Fact-order sensitivity | `python -m experiments.fact_order` |
+| LLM generation baselines (needs `OPENROUTER_API_KEY`) | `python -m experiments.llm_ranking --all_models --domains ferry logistics --max_samples 100 --no_wandb`, then `python -m analysis.analyze_llm_results --results_dir results/llm_experiment_updated` |
+| EmbedPlan on the LLM baselines' candidate pools | `python -m experiments.matched_pool --tag logistics_random_seed0` |
+| Latency | `python -m experiments.benchmark_latency --domain ferry` |
+| Dataset statistics | `python -m analysis.validate_stats` |
 
-## Splits — the most important knob
-
-| flag | protocol in the paper | what it measures |
-|---|---|---|
-| `--split_type random` | **Interpolation** | transitions shuffled; the same problem instance appears on both sides. Near-ceiling. Not a generalization measurement. |
-| `--split_type problem_grouped` | **Extrapolation** | whole problem instances held out. Every generalization claim rests on this. |
-
-Never report a `random`-split number without labelling it interpolation.
-
-The flag spelling differs by driver, for historical reasons: `--split_type` in
-`experiments/train.py` and `train_multi_domain.py`, `--split` in
-`finetune_encoder.py` and `fact_order.py`, `--splits` in `baseline_sweep.py` and
-`llm_transition.py`. The values are the same everywhere.
+`scripts/sbatch_job.sh` submits any of these modules as a SLURM job, and
+`scripts/resume_protocol_sweep.sh` queues the reference-method sweep cell by cell.
 
 ## Evaluation protocol
 
-`embedplan/paper_protocol.py` implements the evaluator used for every number in
-the paper, and all reference methods are scored through it so the comparison is
-about the representation and nothing else:
+All reported numbers follow one evaluation protocol, and every reference method is scored under
+it, so a comparison is about the representation and nothing else.
 
-* pool of 128 = ground truth + 127 distractors;
-* under `problem_grouped`, distractors come from the query's **own problem
-  instance**; under `random`, uniformly from the domain;
-* **worst-case tie-breaking** — a candidate scoring exactly equal to the ground
-  truth counts against it.
+- **Pool of 128** candidates: the true next state and 127 distractors. Under Extrapolation the
+  distractors come from the query's **own problem**, the hardest near-misses; under
+  Interpolation they are drawn from the whole domain.
+- **Ties count against the truth.** A candidate scoring exactly equal to the true next state
+  ranks above it. A representation that collapses distinct states therefore scores 0%, not
+  100%.
+- The splits flag is the most important knob: `random` is Interpolation (the same problems on
+  both sides; not a generalization test) and `problem_grouped` is Extrapolation (whole
+  problems held out). The flag is spelled `--split_type` in `train.py` and
+  `train_multi_domain.py`, `--split` in `closed_loop.py`, `finetune_encoder.py`,
+  `tabular.py` and `fact_order.py`, and `--splits` in `baseline_sweep.py`,
+  `symbolic_baseline.py` and `llm_transition.py`.
+- In `train.py` the Interpolation split is the same fixed partition for every seed
+  (`random_state=42`); the seed changes initialization and batching.
 
-The tie convention is load-bearing. A representation that collapses distinct
-states (for instance, one built from the problem/goal text with the state block
-deleted) ties with every candidate; under best-case tie-breaking it would score
-100% Hit@5 while carrying no state information, and under this convention it
-scores 0%.
+## Repository layout
 
-## Reproducing the tables
-
-Reference-method comparison (11 arms x domain x split x seed, best-epoch
-selection, one JSON per cell, skips completed cells so it resumes):
-
-```bash
-python -m experiments.baseline_sweep \
-    --domains ferry logistics goldminer \
-    --splits problem_grouped random \
-    --seeds 0 1 2
-python -m analysis.protocol_tables --latex --metric hit@5
-python -m analysis.protocol_tables --latex --metric hit@1
+```
+embedplan/            the library
+  models.py             projection heads and transition networks (residual MLP, hypernetwork)
+  losses.py             InfoNCE and the action-disambiguation objective
+  training.py           the training loop over cached embedding tables
+  scoring.py            Hit@k, candidate ranking, absolute and displacement scoring
+  evaluation.py         the published evaluators, pool scaling, abstention
+  paper_protocol.py     the evaluator behind the reference-method comparison
+  rollout.py            multi-step closed-loop rollout
+  data.py               datasets, splits by problem and plan, batch samplers
+  baselines.py          identity, offset (grounded and lifted) and ridge floors
+  symbolic.py           lifted STRIPS operator induction
+  finetune.py           LoRA fine-tuning of the encoder
+  encoders.py, prompts.py   frozen encoders and state-to-text rendering
+experiments/          one entry point per experiment   (python -m experiments.X)
+analysis/             tables from saved results        (python -m analysis.X)
+tools/                embedding the states and actions; a toy domain for smoke tests
+scripts/              reproduction grids and SLURM helpers
+tests/                CPU unit tests on synthetic data (pytest)
 ```
 
-Arms: `embed_<encoder>`, `tfidf`, `bow`, `char`, `literals` (sparse encoders
-through an identical head), `identity`, `offset_grounded`, `offset_lifted`
-(non-learned floors), `symbolic` (lifted STRIPS induction, an oracle),
-`context`, `random` (null controls).
-
-Encoder fine-tuning (frozen vs LoRA cold start vs LoRA warm start):
+## Tests
 
 ```bash
-python -m experiments.finetune_encoder --domain ferry --split problem_grouped --seed 0
-python -m analysis.warmstart_table
+pip install -e ".[dev]"
+pytest -q          # CPU only, synthetic data, no downloads
+ruff check .
 ```
 
-Fact-order sensitivity, multi-domain / leave-one-out, direct-LLM baseline:
+## Citation
 
-```bash
-python -m experiments.fact_order
-python -m experiments.train_multi_domain --eval_protocol loo --test_domains ferry
-OPENROUTER_API_KEY=... python -m experiments.llm_transition --domains ferry --splits problem_grouped
+If you use this code, please cite the paper:
+
+```bibtex
+@article{shlomi2026textual,
+  title   = {Textual Planning with Explicit Latent Transitions},
+  author  = {Shlomi, Eliezer and Levy, Ido and Shapira, Eilam and Katz, Michael and Uziel, Guy
+             and Shlomov, Segev and Mashkif, Nir and Reichart, Roi and Keren, Sarah},
+  journal = {arXiv preprint arXiv:2602.04557},
+  year    = {2026}
+}
 ```
 
-## Notes
+GitHub's "Cite this repository" button gives the same entry from [`CITATION.cff`](CITATION.cff).
 
-* `experiments/train_multi_domain.py` covers the Multi-Domain and Leave-One-Out
-  protocols; `experiments/closed_loop.py` and `closed_loop_pools.py` cover
-  multi-step rollout; `experiments/matched_pool.py` re-scores EmbedPlan on the
-  exact pools the LLM baseline is ranked against.
-* `scripts/*.sh` are plain loops, idempotent (they skip any cell whose result
-  JSON exists) and **do not survive the shell dying** — launch long sweeps
-  detached and check for the `=== ... DONE ===` sentinel before treating a sweep
-  as complete. `scripts/sbatch_job.sh` submits any module as a SLURM job.
-* Weights & Biases logging is off by default in `configs/config.yaml`.
+## License
+
+[MIT](LICENSE).

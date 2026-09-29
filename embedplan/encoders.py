@@ -1,10 +1,13 @@
-import time
-from typing import List, Optional
-import torch
-from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM
-import litellm
-from litellm import completion
+"""Frozen text encoders that turn state and action descriptions into embeddings.
 
+Llama3ModelEncoder pools a Hugging Face model's last hidden layer (used for Llama-3.3-70B and
+Qwen2.5-7B); SentenceTransformerEncoder wraps sentence-transformers models (MPNet, BGE-M3).
+"""
+
+from typing import List, Optional
+
+import torch
+from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
 
 class HFEncoderBase:
@@ -120,33 +123,7 @@ class SentenceTransformerEncoder:
             normalize_embeddings=True
         )
 
-        # Convert to list of listsCRRC
+        # Convert to a list of lists
         if isinstance(embeddings, torch.Tensor):
             return embeddings.cpu().tolist()
         return list(embeddings)
-
-class ClaudeGenerator:
-    def __init__(self, model_name="vertex_ai/claude-3-opus", project=None, location=None):
-        self.model_name = model_name
-        self.fail_counter = 0
-        if project:
-            litellm.vertex_project = project
-        if location:
-            litellm.vertex_location = location
-
-    def __call__(self, batch_prompts: List[str], **kwargs) -> List[str]:
-        all_generated_texts = []
-        for prompt in batch_prompts:
-            while True:
-                try:
-                    response = completion(model=self.model_name, messages=[{"role": "user", "content": prompt}], **kwargs)
-                    all_generated_texts.append(response["choices"][0]["message"]["content"])
-                    self.fail_counter = 0
-                    break
-                except Exception as e:
-                    print(f"Completion failed (attempt {self.fail_counter}): {e}")
-                    self.fail_counter += 1
-                    wait_time = 2 ** self.fail_counter
-                    print(f"Retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
-        return all_generated_texts

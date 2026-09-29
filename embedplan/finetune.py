@@ -1,9 +1,9 @@
 """Unfreezing the encoder.
 
-The submission's claim is about *frozen* embeddings, and its explanation for the
+The paper's claim is about *frozen* embeddings. One explanation for the
 extrapolation failure is that those embeddings cluster by problem instance rather
-than by structural role. That explanation has never been tested by intervention —
-it is inferred from the fact that bigger encoders help. Fine-tuning tests it
+than by structural role. Without an intervention that explanation is only
+inferred from the fact that bigger encoders help. Fine-tuning tests it
 directly: if the clustering is what limits extrapolation, adapting the encoder
 should move it; if extrapolation stays flat, the limitation is elsewhere.
 
@@ -24,7 +24,6 @@ from typing import Dict, List, Optional, Sequence
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
 

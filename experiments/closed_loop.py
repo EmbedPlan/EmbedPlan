@@ -1,4 +1,4 @@
-"""Train one (domain, split) and run the three rebuttal evaluations on it.
+"""Train one (domain, split) and run three follow-up evaluations on it.
 
 E4  Closed-loop rollout    teacher-forced vs closed-loop vs free-running.
 E1  Candidate-pool scaling Hit@k as |C| grows from 128 to the full domain pool.
@@ -17,7 +17,7 @@ import torch
 import torch.nn.functional as F
 
 from embedplan import build_model, load_domain, make_split, train_transition
-from embedplan.config import REBUTTAL_DIR
+from embedplan.config import RUNS_DIR
 from embedplan.data import build_trajectories
 from embedplan.evaluation import open_set_abstention, pool_sweep
 from embedplan.rollout import rollout
@@ -55,7 +55,7 @@ def main():
 
     t0 = time.time()
     device = resolve_device()
-    REBUTTAL_DIR.mkdir(parents=True, exist_ok=True)
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
     tag = f"{args.domain}_{args.split}_seed{args.seed}"
     if args.transition != "mlp":
         tag += f"_{args.transition}"
@@ -72,7 +72,7 @@ def main():
     print(f"[{tag}] params total {n_par:,} | transition-only {n_trans:,}", flush=True)
 
     train_transition(model, S, A, tri, train_idx, args, device)
-    torch.save({"model": model.state_dict(), "args": vars(args)}, REBUTTAL_DIR / f"ckpt_{tag}.pt")
+    torch.save({"model": model.state_dict(), "args": vars(args)}, RUNS_DIR / f"ckpt_{tag}.pt")
 
     pool = project_pool(model, S)
     trajs = build_trajectories(tri, valid_idx, args.max_trajs, args.seed)
@@ -91,7 +91,7 @@ def main():
                                              args.seed, mode=args.scoring)
     out["runtime_s"] = time.time() - t0
 
-    path = REBUTTAL_DIR / f"{tag}.json"
+    path = RUNS_DIR / f"{tag}.json"
     path.write_text(json.dumps(out, indent=2))
     print(f"[{tag}] wrote {path}  ({out['runtime_s']:.0f}s)", flush=True)
 

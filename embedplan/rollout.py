@@ -1,7 +1,7 @@
 """Multi-step rollout under three feedback regimes.
 
 teacher_forced   the true state is re-supplied at every step, so errors cannot
-                 accumulate. This is what the submission's plan-level tables report.
+                 accumulate. This is what the paper's plan-level tables report.
 closed_loop      the prediction is snapped to the nearest pool state and that
                  state is fed back — closed loop with per-step re-grounding.
 free_running     the raw predicted latent is fed back, never snapped. No pool is
