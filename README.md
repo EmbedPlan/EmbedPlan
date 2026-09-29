@@ -131,8 +131,8 @@ training; the unit tests and the quickstart run on a CPU.
 
 ## Smoke test of the paper's pipeline, in seconds, no data or GPU
 
-`tools/make_toy_domain.py` writes a tiny synthetic ferry-like domain (6 problems, 171 states,
-hashed bag-of-words "embeddings") in exactly the on-disk format the real data uses. Training
+`tools/make_toy_domain.py` writes a tiny synthetic ferry-like domain (with hashed bag-of-words
+"embeddings") in exactly the on-disk format the real data uses. Training
 the real driver on it checks your install end to end:
 
 ```bash
