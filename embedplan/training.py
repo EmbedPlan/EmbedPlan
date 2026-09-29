@@ -9,6 +9,7 @@ match the distractor distribution used at evaluation.
 """
 
 from collections import defaultdict
+from typing import Callable, Optional
 
 import numpy as np
 import torch
@@ -30,8 +31,12 @@ def _make_batches(n, batch_size, rng, groups=None):
     return batches
 
 
-def train_transition(model, S, A, tri, train_idx, args, device, log_every: int = 50, verbose: bool = True):
-    """Train `model` in place over GPU-resident embedding tables. Returns the model."""
+def train_transition(model, S, A, tri, train_idx, args, device, log_every: int = 50, verbose: bool = True,
+                     callback: Optional[Callable[[int, float], bool]] = None):
+    """Train `model` in place over GPU-resident embedding tables. Returns the model.
+
+    `callback(epoch, mean_loss)` runs after every epoch; returning True stops training early.
+    """
     s_i = torch.as_tensor(tri["s_emb_idx"].to_numpy()[train_idx], device=device, dtype=torch.long)
     a_i = torch.as_tensor(tri["a_idx"].to_numpy()[train_idx], device=device, dtype=torch.long)
     p_i = torch.as_tensor(tri["sp_emb_idx"].to_numpy()[train_idx], device=device, dtype=torch.long)
@@ -86,5 +91,7 @@ def train_transition(model, S, A, tri, train_idx, args, device, log_every: int =
 
         if verbose and (ep % log_every == 0 or ep == 1):
             print(f"  epoch {ep:4d}  loss {total / max(1, seen):.4f}", flush=True)
+        if callback is not None and callback(ep, total / max(1, seen)):
+            break
 
     return model

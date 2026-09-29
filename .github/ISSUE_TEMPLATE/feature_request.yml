@@ -1,0 +1,15 @@
+name: Feature or idea
+description: Suggest an improvement to the library or the method.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What would you like to do?
+      description: The use case first, then the change you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

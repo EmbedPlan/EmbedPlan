@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/dolev31/EmbedPlan/discussions
+    about: Ask how to use EmbedPlan on your data, share results, or discuss an idea.
+  - name: The paper
+    url: https://arxiv.org/abs/2602.04557
+    about: Textual Planning with Explicit Latent Transitions.

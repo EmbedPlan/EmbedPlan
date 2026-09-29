@@ -1,13 +1,16 @@
 """Frozen text encoders that turn state and action descriptions into embeddings.
 
-Llama3ModelEncoder pools a Hugging Face model's last hidden layer (used for Llama-3.3-70B and
-Qwen2.5-7B); SentenceTransformerEncoder wraps sentence-transformers models (MPNet, BGE-M3).
+Llama3ModelEncoder mean-pools a Hugging Face model's last hidden layer (used for Llama-3.3-70B and
+Qwen2.5-7B). SentenceTransformerEncoder wraps sentence-transformers models (MPNet, BGE-M3).
+HashingEncoder hashes word n-grams and needs no download, which makes it a quick encoder for
+trying the method and for tests. `get_encoder` turns any of these, a model name, or your own
+function into one callable: a list of texts in, a float32 array of shape (n_texts, dim) out.
 """
 
-from typing import List, Optional
+from typing import Callable, List, Optional, Sequence, Union
 
+import numpy as np
 import torch
-from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
 
 class HFEncoderBase:
@@ -17,6 +20,8 @@ class HFEncoderBase:
         self.pooling_strategy = pooling_strategy
         self.device = device or ('cuda' if torch.cuda.is_available() else
                                  ('mps' if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available() else 'cpu'))
+
+        from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer  # the `encoders` extra
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, use_fast=True)
         if self.tokenizer.pad_token is None:
@@ -127,3 +132,57 @@ class SentenceTransformerEncoder:
         if isinstance(embeddings, torch.Tensor):
             return embeddings.cpu().tolist()
         return list(embeddings)
+
+
+class HashingEncoder:
+    """Word 1-3 grams (or character n-grams) hashed into `n_features` dimensions, L2-normalized.
+
+    No download and no GPU. A lexical encoder in the spirit of the paper's bag-of-words and n-gram
+    reference methods: strong when states are written in a fixed template, and a quick way to
+    try the pipeline before encoding with a large language model. On the toy ferry world, word
+    n-grams beat character n-grams by a wide margin at Hit@1.
+    """
+
+    def __init__(self, n_features: int = 1024, analyzer: str = "word", ngram_range=(1, 3)):
+        from sklearn.feature_extraction.text import HashingVectorizer
+        self.n_features, self.analyzer, self.ngram_range = n_features, analyzer, tuple(ngram_range)
+        self._vec = HashingVectorizer(analyzer=analyzer, ngram_range=self.ngram_range, n_features=n_features,
+                                      alternate_sign=False, norm="l2", lowercase=True)
+
+    def __call__(self, texts: Sequence[str]) -> np.ndarray:
+        return self._vec.transform(list(texts)).toarray().astype(np.float32)
+
+
+def _as_array_encoder(fn: Callable) -> Callable[[Sequence[str]], np.ndarray]:
+    def encode(texts: Sequence[str]) -> np.ndarray:
+        out = fn(list(texts))
+        if isinstance(out, torch.Tensor):
+            out = out.detach().to(torch.float32).cpu().numpy()
+        out = np.asarray(out, dtype=np.float32)
+        if out.ndim != 2 or out.shape[0] != len(texts):
+            raise ValueError(f"the encoder returned shape {out.shape} for {len(texts)} texts; "
+                             "expected (n_texts, dim)")
+        return out
+    return encode
+
+
+def get_encoder(spec: Union[str, Callable], device: Optional[str] = None) -> Callable[[Sequence[str]], np.ndarray]:
+    """One callable from a name or a function: texts in, float32 array (n_texts, dim) out.
+
+    "hashing"                        word n-gram hashing (no download)
+    a sentence-transformers name     e.g. "BAAI/bge-m3", "sentence-transformers/all-mpnet-base-v2"
+    a Llama or Qwen model name       mean-pooled last hidden layer, e.g. "Qwen/Qwen2.5-7B-Instruct"
+    any other Hugging Face name      tried with sentence-transformers first
+    a callable                       your own encoder, e.g. a lookup into precomputed embeddings
+    """
+    if callable(spec):
+        return _as_array_encoder(spec)
+    if not isinstance(spec, str):
+        raise TypeError(f"encoder must be a model name or a callable, got {type(spec).__name__}")
+    name = spec.lower()
+    if name == "hashing":
+        return HashingEncoder()
+    if "llama" in name or "qwen" in name:
+        return _as_array_encoder(Llama3ModelEncoder(spec, device=device))
+    return _as_array_encoder(SentenceTransformerEncoder(spec, device=device))
+

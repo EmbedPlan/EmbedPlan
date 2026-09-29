@@ -13,6 +13,7 @@ Segev Shlomov<sup>2</sup>, Nir Mashkif<sup>2</sup>, Roi Reichart<sup>1</sup>, Sa
 [![tests](https://github.com/dolev31/EmbedPlan/actions/workflows/tests.yml/badge.svg)](https://github.com/dolev31/EmbedPlan/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dolev31/EmbedPlan/blob/main/examples/quickstart.ipynb)
 
 </div>
 
@@ -30,8 +31,43 @@ network, and returns the closest real state. Because the network trains on top o
 encoder, EmbedPlan is also a controlled way to compare text representations for learning
 transitions.
 
-This repository holds the code for the paper: the model, its training objectives, the
-evaluation protocols, every reference method, and the scripts behind the paper's tables.
+This repository holds a library you can use on your own transitions, and the code behind the
+paper: the model, its training objectives, the evaluation protocols, every reference method, and
+the scripts behind the paper's tables.
+
+## Use it on your own data
+
+Any domain whose states and actions can be written as text works: planning problems, game logs,
+web or UI agent traces, lab protocols. EmbedPlan follows scikit-learn's conventions:
+
+```python
+from embedplan import EmbedPlan, split_transitions, transitions_from_trajectories
+
+# trajectories: [(states, actions), ...] as text, one more state than actions per run
+X, y, groups = transitions_from_trajectories(trajectories, groups=problem_ids)
+X_tr, X_te, y_tr, y_te, g_tr, g_te = split_transitions(X, y, groups, protocol="extrapolation")
+
+model = EmbedPlan(encoder="BAAI/bge-m3").fit(X_tr, y_tr, groups=g_tr)
+model.evaluate(X_te, y_te, groups=g_te)   # Hit@1/5/10 among 128 candidates, with chance levels
+model.predict([(state, action)])          # the most likely next state, as text
+```
+
+| | |
+|---|---|
+| `EmbedPlan(encoder=...)` | `"hashing"` (word n-grams, no download), any sentence-transformers or Hugging Face model name, or your own function from texts to vectors (e.g. a lookup into embeddings you already have) |
+| `fit(X, y, groups=None)` | `X` is a list of `(state, action)` pairs or a DataFrame with `state`, `action` (and `next_state`) columns; `groups` (e.g. problem ids) gives same-problem training batches, as in the paper |
+| `predict`, `predict_topk`, `predict_scores` | rank candidate next states: by default every state seen in `fit`; for a new problem pass its states as `candidates=` or register them with `add_states` |
+| `evaluate`, `score` | the paper's protocol: 128 candidates, distractors from the query's own problem (with `groups`) or from all known states, ties counted against the truth, chance reported |
+| `rollout(state, actions)` | multi-step prediction, each step snapped to the nearest real state |
+| `split_transitions(..., protocol=)` | `"extrapolation"` holds out whole problems, `"interpolation"` held-out transitions |
+| `save(path)`, `EmbedPlan.load(path)` | persistence; `EmbedPlan(**EmbedPlan.paper_params())` gives the paper's hyperparameters |
+
+It is an ordinary scikit-learn estimator (`clone`, `get_params`, `set_params` work) and
+`random_state` makes runs repeatable. Try it with no install in the
+[Colab notebook](https://colab.research.google.com/github/dolev31/EmbedPlan/blob/main/examples/quickstart.ipynb),
+or run [`examples/your_own_data.py`](examples/your_own_data.py) on a laptop CPU in about a minute.
+On unseen problems expect lower accuracy than on seen ones: that is the paper's main finding, and
+`evaluate` prints the chance level of the same pools so every number can be read against it.
 
 ## Results at a glance
 
@@ -92,7 +128,7 @@ fine-tuning), `llm` (LLM baselines through OpenRouter), `viz` (figures, W&B logg
 `dev` (tests and lint). A GPU is needed to encode with the large LLMs and recommended for
 training; the unit tests and the quickstart run on a CPU.
 
-## Quickstart: the whole pipeline in seconds, no data or GPU
+## Smoke test of the paper's pipeline, in seconds, no data or GPU
 
 `tools/make_toy_domain.py` writes a tiny synthetic ferry-like domain (6 problems, 171 states,
 hashed bag-of-words "embeddings") in exactly the on-disk format the real data uses. Training
@@ -110,7 +146,9 @@ cat /tmp/embedplan_toy/job.json      # best_hit@1 ≈ 0.8, best_hit@5 = 1.0 on h
 This takes about 5 seconds on a laptop CPU. It is a smoke test, not a benchmark: the toy
 domain is far easier than the paper's.
 
-## Using the library
+## Lower-level building blocks
+
+The estimator is built from these; the paper's experiments use them directly.
 
 ```python
 import torch
@@ -228,8 +266,12 @@ experiments/          one entry point per experiment   (python -m experiments.X)
 analysis/             tables from saved results        (python -m analysis.X)
 tools/                embedding the states and actions; a toy domain for smoke tests
 scripts/              reproduction grids and SLURM helpers
+examples/             the Colab quickstart and an end-to-end script for your own data
 tests/                CPU unit tests on synthetic data (pytest)
 ```
+
+The estimator lives in `embedplan/estimator.py`, the no-download encoder and the encoder factory
+in `embedplan/encoders.py`, and the toy dataset in `embedplan/datasets.py`.
 
 ## Tests
 
@@ -238,6 +280,21 @@ pip install -e ".[dev]"
 pytest -q          # CPU only, synthetic data, no downloads
 ruff check .
 ```
+
+## Contributing
+
+We would love to hear how EmbedPlan works on your data. Questions, results and ideas go to
+[Discussions](https://github.com/dolev31/EmbedPlan/discussions), bugs to
+[issues](https://github.com/dolev31/EmbedPlan/issues/new/choose). New domains, encoders and
+dataset loaders are especially welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+
+## Authors and maintainers
+
+EmbedPlan is the work of Eliezer Shlomi, Ido Levy, Eilam Shapira, Michael Katz, Guy Uziel,
+Segev Shlomov, Nir Mashkif, Roi Reichart and Sarah Keren (Technion and IBM). Eliezer Shlomi and
+Ido Levy contributed equally. The code is maintained by
+Eliezer Shlomi ([@Eliezer318](https://github.com/Eliezer318)) and
+Ido Levy ([@dolev31](https://github.com/dolev31)).
 
 ## Citation
 

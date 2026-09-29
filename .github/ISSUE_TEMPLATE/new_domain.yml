@@ -1,0 +1,22 @@
+name: Share a domain or results
+description: A new domain, benchmark or encoder you ran EmbedPlan on.
+labels: [domain]
+body:
+  - type: textarea
+    id: domain
+    attributes:
+      label: The domain
+      description: Where the transitions come from, how states and actions are written, how many problems and transitions.
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Results
+      description: The encoder, the protocol (interpolation or extrapolation) and what evaluate() printed, chance levels included.
+  - type: checkboxes
+    id: share
+    attributes:
+      label: Sharing
+      options:
+        - label: The data can be shared publicly, and I can contribute a loader for embedplan/datasets.py

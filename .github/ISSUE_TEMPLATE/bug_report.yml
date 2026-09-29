@@ -1,0 +1,22 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or code you ran, what you expected, and what happened instead (with the full error).
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Smallest example that shows it
+      description: If possible, use `embedplan.datasets.load_toy_ferry()` so we can run it.
+      render: python
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "Output of: python -c \"import embedplan, torch, sys; print(sys.version, torch.__version__)\" and the commit"
