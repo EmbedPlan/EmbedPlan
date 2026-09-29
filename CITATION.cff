@@ -32,7 +32,7 @@ authors:
     affiliation: "Technion – Israel Institute of Technology, Haifa, Israel"
 abstract: "When a large language model serves as a planner's transition model, every next state is generated token by token, which makes searching over many possible futures slow and expensive. EmbedPlan embeds the state and action with a frozen LLM, predicts the next-state embedding with a lightweight learned network, and returns the closest real state, evaluated on 9 classical planning domains under six settings that hold out progressively more of the data."
 license: MIT
-repository-code: "https://github.com/dolev31/EmbedPlan"
+repository-code: "https://github.com/embedplan/EmbedPlan"
 url: "https://arxiv.org/abs/2602.04557"
 keywords:
   - "EmbedPlan"

@@ -51,7 +51,7 @@ all = ["embedplan[encoders,lora,llm,viz]"]
 
 [project.urls]
 Paper = "https://arxiv.org/abs/2602.04557"
-Code = "https://github.com/dolev31/EmbedPlan"
+Code = "https://github.com/embedplan/EmbedPlan"
 
 [tool.setuptools.packages.find]
 include = ["embedplan*"]

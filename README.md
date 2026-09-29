@@ -10,10 +10,10 @@ Segev Shlomov<sup>2</sup>, Nir Mashkif<sup>2</sup>, Roi Reichart<sup>1</sup>, Sa
 <sup>1</sup>Technion – Israel Institute of Technology &nbsp; <sup>2</sup>IBM &nbsp; <sup>\*</sup>Equal contribution
 
 [![arXiv](https://img.shields.io/badge/arXiv-2602.04557-b31b1b.svg)](https://arxiv.org/abs/2602.04557)
-[![tests](https://github.com/dolev31/EmbedPlan/actions/workflows/tests.yml/badge.svg)](https://github.com/dolev31/EmbedPlan/actions/workflows/tests.yml)
+[![tests](https://github.com/embedplan/EmbedPlan/actions/workflows/tests.yml/badge.svg)](https://github.com/embedplan/EmbedPlan/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dolev31/EmbedPlan/blob/main/examples/quickstart.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/embedplan/EmbedPlan/blob/main/examples/quickstart.ipynb)
 
 </div>
 
@@ -64,7 +64,7 @@ model.predict([(state, action)])          # the most likely next state, as text
 
 It is an ordinary scikit-learn estimator (`clone`, `get_params`, `set_params` work) and
 `random_state` makes runs repeatable. Try it with no install in the
-[Colab notebook](https://colab.research.google.com/github/dolev31/EmbedPlan/blob/main/examples/quickstart.ipynb),
+[Colab notebook](https://colab.research.google.com/github/embedplan/EmbedPlan/blob/main/examples/quickstart.ipynb),
 or run [`examples/your_own_data.py`](examples/your_own_data.py) on a laptop CPU in about a minute.
 On unseen problems expect lower accuracy than on seen ones: that is the paper's main finding, and
 `evaluate` prints the chance level of the same pools so every number can be read against it.
@@ -116,7 +116,7 @@ Larger encoders extrapolate better, but none closes the gap (Hit@5 %, paper, Tab
 ## Installation
 
 ```bash
-git clone https://github.com/dolev31/EmbedPlan.git
+git clone https://github.com/embedplan/EmbedPlan.git
 cd EmbedPlan
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[all]"        # or: pip install -e .  for the core library only
@@ -284,8 +284,8 @@ ruff check .
 ## Contributing
 
 We would love to hear how EmbedPlan works on your data. Questions, results and ideas go to
-[Discussions](https://github.com/dolev31/EmbedPlan/discussions), bugs to
-[issues](https://github.com/dolev31/EmbedPlan/issues/new/choose). New domains, encoders and
+[Discussions](https://github.com/embedplan/EmbedPlan/discussions), bugs to
+[issues](https://github.com/embedplan/EmbedPlan/issues/new/choose). New domains, encoders and
 dataset loaders are especially welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ## Authors and maintainers

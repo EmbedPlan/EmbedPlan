@@ -6,9 +6,9 @@ questions, bug reports, new domains, new encoders and results on your own data.
 ## Ways to help
 
 - **Try it on your data** and tell us how it went in
-  [Discussions](https://github.com/dolev31/EmbedPlan/discussions): the domain, the encoder, the
+  [Discussions](https://github.com/embedplan/EmbedPlan/discussions): the domain, the encoder, the
   numbers `evaluate()` printed, and anything that was harder than it should be.
-- **Report a bug** with the [bug form](https://github.com/dolev31/EmbedPlan/issues/new/choose): what you
+- **Report a bug** with the [bug form](https://github.com/embedplan/EmbedPlan/issues/new/choose): what you
   ran, what you expected, what happened, and your versions.
 - **Share a domain or benchmark**: a new planning domain, game, web or UI environment, or any
   source of text transitions. A loader in `embedplan/datasets.py` that returns `X, y, groups`
@@ -21,7 +21,7 @@ questions, bug reports, new domains, new encoders and results on your own data.
 ## Development setup
 
 ```bash
-git clone https://github.com/dolev31/EmbedPlan.git
+git clone https://github.com/embedplan/EmbedPlan.git
 cd EmbedPlan
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
