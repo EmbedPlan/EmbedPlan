@@ -9,6 +9,7 @@ Segev Shlomov<sup>2</sup>, Nir Mashkif<sup>2</sup>, Roi Reichart<sup>1</sup>, Sa
 
 <sup>1</sup>Technion – Israel Institute of Technology &nbsp; <sup>2</sup>IBM &nbsp; <sup>\*</sup>Equal contribution
 
+[![Project page](https://img.shields.io/badge/project-page-1B5EA8.svg)](https://embedplan.github.io)
 [![arXiv](https://img.shields.io/badge/arXiv-2602.04557-b31b1b.svg)](https://arxiv.org/abs/2602.04557)
 [![tests](https://github.com/embedplan/EmbedPlan/actions/workflows/tests.yml/badge.svg)](https://github.com/embedplan/EmbedPlan/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
